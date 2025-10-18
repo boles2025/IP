@@ -254,6 +254,31 @@
             color: var(--dark);
         }
 
+        .ip-prefix {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            padding: 8px 12px;
+            background-color: #e9ecef;
+            border-radius: 6px;
+            font-family: monospace;
+        }
+
+        .ip-prefix span {
+            margin-left: 8px;
+            font-weight: 600;
+        }
+
+        .ip-number-input {
+            display: flex;
+            align-items: center;
+        }
+
+        .ip-number-input input {
+            width: 100px;
+            margin-left: 10px;
+        }
+
         .selected-ips {
             margin-top: 25px;
             padding: 20px;
@@ -904,12 +929,12 @@
                 <div class="footer-logo">
                     <i class="fas fa-network-wired"></i>
                     <div>
-                        <h3>نظام إدارة عناوين IP</h3>
+                        <h3>نظام إدارة  IP</h3>
                         <p>كلية الطب البيطري - جامعة المنيا</p>
                     </div>
                 </div>
                 <div class="footer-info">
-                    <p>تصميم وإشراف: م. بولس سمير</p>
+                    <p>تصميم : م. بولس سمير</p>
                     <p>مدير وحدة تكنولوجيا المعلومات</p>
                 </div>
             </div>
@@ -941,6 +966,7 @@
         let selectedDevices = [];
         let deviceIPs = {};
         let editingId = null;
+        const IP_PREFIX = "192.168.248.";
 
         // DOM جاهز
         document.addEventListener('DOMContentLoaded', function() {
@@ -1006,18 +1032,21 @@
                 // التحقق من إدخال جميع عناوين IP المطلوبة
                 for (const device of selectedDevices) {
                     if (!deviceIPs[device] || deviceIPs[device].trim() === '') {
-                        alert(`يرجى إدخال عنوان IP لجهاز ${device}`);
+                        alert(`يرجى إدخال رقم IP لجهاز ${device}`);
                         return;
                     }
                     
-                    // التحقق من صيغة عنوان IP
-                    if (!isValidIP(deviceIPs[device])) {
-                        alert(`عنوان IP لجهاز ${device} غير صحيح. يرجى استخدام الصيغة الصحيحة (مثال: 192.168.1.1)`);
+                    // التحقق من صيغة رقم IP
+                    if (!isValidIPNumber(deviceIPs[device])) {
+                        alert(`رقم IP لجهاز ${device} غير صحيح. يرجى إدخال رقم صحيح بين 1 و 254`);
                         return;
                     }
+                    
+                    // إنشاء عنوان IP كامل
+                    const fullIP = IP_PREFIX + deviceIPs[device];
                     
                     // التحقق من تكرار عنوان IP
-                    const duplicate = checkDuplicateIP(deviceIPs[device], editingId);
+                    const duplicate = checkDuplicateIP(fullIP, editingId);
                     if (duplicate) {
                         showDuplicateAlert(duplicate);
                         return;
@@ -1030,8 +1059,14 @@
                     floor: floor,
                     devices: [...selectedDevices],
                     deviceIPs: {...deviceIPs},
+                    fullIPs: {},
                     timestamp: new Date().toISOString()
                 };
+                
+                // إنشاء عناوين IP كاملة
+                for (const device in deviceIPs) {
+                    ipRecord.fullIPs[device] = IP_PREFIX + deviceIPs[device];
+                }
                 
                 if (editingId) {
                     // تحديث البيانات في Firebase
@@ -1102,10 +1137,18 @@
                     ipInputGroup.className = 'ip-input-group';
                     
                     ipInputGroup.innerHTML = `
-                        <label for="ip-${device}">عنوان IP لـ ${device}:</label>
-                        <input type="text" id="ip-${device}" class="form-control ip-input" 
-                               placeholder="أدخل عنوان IP (مثال: 192.168.1.1)" 
-                               data-device="${device}" value="${deviceIPs[device] || ''}">
+                        <label for="ip-${device}">رقم IP لـ ${device}:</label>
+                        <div class="ip-prefix">
+                            <i class="fas fa-network-wired"></i>
+                            <span>${IP_PREFIX}</span>
+                        </div>
+                        <div class="ip-number-input">
+                            <input type="number" id="ip-${device}" class="form-control ip-input" 
+                                   placeholder="أدخل الرقم فقط (مثال: 5)" 
+                                   data-device="${device}" value="${deviceIPs[device] || ''}" 
+                                   min="1" max="254">
+                            <span>رقم IP</span>
+                        </div>
                     `;
                     
                     ipInputsContainer.appendChild(ipInputGroup);
@@ -1119,8 +1162,9 @@
                         updateSelectedIPsDisplay();
                         
                         // التحقق من التكرار عند إدخال IP
-                        if (isValidIP(this.value)) {
-                            const duplicate = checkDuplicateIP(this.value, editingId);
+                        if (isValidIPNumber(this.value)) {
+                            const fullIP = IP_PREFIX + this.value;
+                            const duplicate = checkDuplicateIP(fullIP, editingId);
                             if (duplicate) {
                                 showDuplicateAlert(duplicate);
                             } else {
@@ -1143,36 +1187,29 @@
             
             selectedDevices.forEach(device => {
                 if (deviceIPs[device] && deviceIPs[device].trim() !== '') {
+                    const fullIP = IP_PREFIX + deviceIPs[device];
                     const ipElement = document.createElement('div');
                     ipElement.className = 'ip-item';
-                    ipElement.innerHTML = `<i class="fas fa-network-wired"></i> ${deviceIPs[device]} (${device})`;
+                    ipElement.innerHTML = `<i class="fas fa-network-wired"></i> ${fullIP} (${device})`;
                     ipDisplay.appendChild(ipElement);
                 }
             });
         }
 
-        // التحقق من صيغة عنوان IP
-        function isValidIP(ip) {
-            const ipRegex = /^(\d{1,3}\.){3}\d{1,3}$/;
-            if (!ipRegex.test(ip)) return false;
-            
-            const parts = ip.split('.');
-            for (const part of parts) {
-                const num = parseInt(part, 10);
-                if (num < 0 || num > 255) return false;
-            }
-            
-            return true;
+        // التحقق من صيغة رقم IP
+        function isValidIPNumber(ipNumber) {
+            const num = parseInt(ipNumber, 10);
+            return !isNaN(num) && num >= 1 && num <= 254;
         }
 
         // التحقق من تكرار عنوان IP
-        function checkDuplicateIP(ip, excludeId = null) {
+        function checkDuplicateIP(fullIP, excludeId = null) {
             for (const record of ipData) {
                 if (excludeId && record.id === excludeId) continue;
                 
-                if (record.deviceIPs) {
-                    for (const device in record.deviceIPs) {
-                        if (record.deviceIPs[device] === ip) {
+                if (record.fullIPs) {
+                    for (const device in record.fullIPs) {
+                        if (record.fullIPs[device] === fullIP) {
                             return record;
                         }
                     }
@@ -1186,8 +1223,10 @@
             const duplicateAlert = document.getElementById('duplicate-alert');
             const duplicateDetails = document.getElementById('duplicate-details');
             
+            const duplicateIP = duplicateRecord.fullIPs ? Object.values(duplicateRecord.fullIPs)[0] : '';
+            
             duplicateDetails.innerHTML = `
-                العنوان ${duplicateRecord.deviceIPs ? Object.values(duplicateRecord.deviceIPs)[0] : ''} 
+                العنوان ${duplicateIP} 
                 مسجل مسبقاً في ${duplicateRecord.officeName} - ${duplicateRecord.floor}
             `;
             
@@ -1300,7 +1339,7 @@
                 });
             } else {
                 data.forEach(ip => {
-                    const ipList = ip.deviceIPs ? Object.values(ip.deviceIPs).join(', ') : 'لا توجد عناوين';
+                    const ipList = ip.fullIPs ? Object.values(ip.fullIPs).join(', ') : 'لا توجد عناوين';
                     content += `<div><strong>${ip.officeName} - ${ip.floor}:</strong> ${ipList}</div>`;
                 });
             }
@@ -1343,9 +1382,9 @@
                 
                 // إنشاء قائمة بعناوين IP
                 let ipList = '';
-                if (ip.deviceIPs) {
-                    for (const device in ip.deviceIPs) {
-                        ipList += `<div>${ip.deviceIPs[device]} (${device})</div>`;
+                if (ip.fullIPs) {
+                    for (const device in ip.fullIPs) {
+                        ipList += `<div>${ip.fullIPs[device]} (${device})</div>`;
                     }
                 }
                 
@@ -1496,9 +1535,9 @@
             
             // إنشاء قائمة بعناوين IP
             let ipList = '';
-            if (ip.deviceIPs) {
-                for (const device in ip.deviceIPs) {
-                    ipList += `<div class="ip-value" style="margin-bottom: 5px;">${ip.deviceIPs[device]} (${device})</div>`;
+            if (ip.fullIPs) {
+                for (const device in ip.fullIPs) {
+                    ipList += `<div class="ip-value" style="margin-bottom: 5px;">${ip.fullIPs[device]} (${device})</div>`;
                 }
             }
             
@@ -1592,7 +1631,7 @@
             }
             
             const data = ipData.map(ip => {
-                const ips = ip.deviceIPs ? Object.entries(ip.deviceIPs).map(([device, ip]) => `${ip} (${device})`).join(', ') : '';
+                const ips = ip.fullIPs ? Object.entries(ip.fullIPs).map(([device, ip]) => `${ip} (${device})`).join(', ') : '';
                 return {
                     'اسم المكتب': ip.officeName,
                     'الدور': ip.floor,
@@ -1639,7 +1678,7 @@
                     y = 20;
                 }
                 
-                const ips = ip.deviceIPs ? Object.entries(ip.deviceIPs).map(([device, ip]) => `${ip} (${device})`).join(', ') : '';
+                const ips = ip.fullIPs ? Object.entries(ip.fullIPs).map(([device, ip]) => `${ip} (${device})`).join(', ') : '';
                 
                 doc.text(`المكتب: ${ip.officeName}`, 20, y);
                 doc.text(`الدور: ${ip.floor}`, 20, y + 7);
@@ -1682,7 +1721,7 @@
                         </thead>
                         <tbody>
                             ${ipData.map(ip => {
-                                const ips = ip.deviceIPs ? Object.entries(ip.deviceIPs).map(([device, ip]) => `${ip} (${device})`).join(', ') : '';
+                                const ips = ip.fullIPs ? Object.entries(ip.fullIPs).map(([device, ip]) => `${ip} (${device})`).join(', ') : '';
                                 return `
                                     <tr>
                                         <td>${ip.officeName}</td>
@@ -1706,5 +1745,4 @@
         }
     </script>
 </body>
-
 </html>
