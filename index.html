@@ -1,0 +1,1709 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام إدارة IPs - كلية الطب البيطري جامعة المنيا</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <style>
+        :root {
+            --primary: #1a5276;
+            --secondary: #117864;
+            --accent: #d68910;
+            --light: #f8f9fa;
+            --dark: #2c3e50;
+            --success: #28a745;
+            --danger: #e74c3c;
+            --warning: #f39c12;
+            --info: #3498db;
+            --bg-gradient: linear-gradient(135deg, #1a5276 0%, #117864 100%);
+            --card-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            --hover-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', 'Tajawal', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #f0f3f5;
+            color: var(--dark);
+            line-height: 1.6;
+            min-height: 100vh;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect fill="%231a5276" fill-opacity="0.03" width="50" height="50"/><rect fill="%231a5276" fill-opacity="0.03" x="50" y="50" width="50" height="50"/></svg>');
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 15px;
+        }
+
+        /* Header Styles */
+        header {
+            background: var(--bg-gradient);
+            color: white;
+            padding: 20px 0;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+            position: relative;
+            overflow: hidden;
+        }
+
+        header::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 320"><path fill="%23ffffff" fill-opacity="0.05" d="M0,96L48,112C96,128,192,160,288,186.7C384,213,480,235,576,213.3C672,192,768,128,864,128C960,128,1056,192,1152,192C1248,192,1344,128,1392,96L1440,64L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path></svg>');
+            background-size: cover;
+            opacity: 0.1;
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: relative;
+            z-index: 1;
+        }
+
+        .logo-container {
+            display: flex;
+            align-items: center;
+        }
+
+        .logo {
+            width: 80px;
+            height: 80px;
+            background-color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-left: 15px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            transition: transform 0.3s ease;
+        }
+
+        .logo:hover {
+            transform: scale(1.05);
+        }
+
+        .logo i {
+            font-size: 36px;
+            color: var(--primary);
+        }
+
+        .title-container h1 {
+            font-size: 26px;
+            margin-bottom: 5px;
+            font-weight: 700;
+        }
+
+        .title-container p {
+            font-size: 16px;
+            opacity: 0.9;
+        }
+
+        .manager-info {
+            text-align: left;
+            background-color: rgba(255, 255, 255, 0.15);
+            padding: 12px 20px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .manager-info:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .manager-info h3 {
+            font-size: 18px;
+            margin-bottom: 5px;
+        }
+
+        .manager-info p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        /* Main Content */
+        .main-content {
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: var(--card-shadow);
+            padding: 30px;
+            margin: 25px 0;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .main-content:hover {
+            box-shadow: var(--hover-shadow);
+            transform: translateY(-5px);
+        }
+
+        .section-title {
+            color: var(--primary);
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f3f5;
+            display: flex;
+            align-items: center;
+            font-weight: 700;
+            font-size: 22px;
+        }
+
+        .section-title i {
+            margin-left: 12px;
+            font-size: 26px;
+        }
+
+        /* Form Styles */
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: 600;
+            color: var(--dark);
+            font-size: 16px;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 14px 18px;
+            border: 1px solid #e1e5eb;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            background-color: #f8f9fa;
+        }
+
+        .form-control:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(26, 82, 118, 0.2);
+            outline: none;
+            background-color: white;
+        }
+
+        .checkbox-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-top: 10px;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            background-color: #f8f9fa;
+            padding: 12px 18px;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            flex: 1;
+            min-width: 150px;
+        }
+
+        .checkbox-item:hover {
+            background-color: #e9ecef;
+            transform: translateY(-2px);
+        }
+
+        .checkbox-item input {
+            margin-left: 10px;
+            transform: scale(1.2);
+        }
+
+        .checkbox-item.selected {
+            background-color: rgba(26, 82, 118, 0.1);
+            border-color: var(--primary);
+        }
+
+        .ip-inputs-container {
+            margin-top: 20px;
+        }
+
+        .ip-input-group {
+            margin-bottom: 15px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+        }
+
+        .ip-input-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--dark);
+        }
+
+        .selected-ips {
+            margin-top: 25px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            border: 1px dashed #ced4da;
+        }
+
+        .ip-display {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 15px;
+        }
+
+        .ip-item {
+            background-color: white;
+            padding: 10px 18px;
+            border-radius: 20px;
+            border: 1px solid #dee2e6;
+            font-family: monospace;
+            font-size: 15px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+            display: flex;
+            align-items: center;
+        }
+
+        .ip-item i {
+            margin-left: 8px;
+            color: var(--primary);
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 14px 28px;
+            background: var(--bg-gradient);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+            box-shadow: 0 4px 10px rgba(26, 82, 118, 0.3);
+            margin-left: 10px;
+            margin-bottom: 10px;
+        }
+
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 15px rgba(26, 82, 118, 0.4);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, var(--success), #20c997);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, var(--danger), #e83e8c);
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, var(--warning), #f1c40f);
+        }
+
+        .btn-info {
+            background: linear-gradient(135deg, var(--info), #3498db);
+        }
+
+        .btn i {
+            margin-left: 8px;
+        }
+
+        /* Reports Section */
+        .stats-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 25px;
+            margin-bottom: 35px;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: var(--card-shadow);
+            text-align: center;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            cursor: pointer;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 100%;
+            height: 5px;
+            background: var(--bg-gradient);
+        }
+
+        .stat-card:hover {
+            transform: translateY(-8px);
+            box-shadow: var(--hover-shadow);
+        }
+
+        .stat-card i {
+            font-size: 40px;
+            margin-bottom: 20px;
+            color: var(--primary);
+        }
+
+        .stat-card h3 {
+            font-size: 32px;
+            margin-bottom: 8px;
+            color: var(--dark);
+            font-weight: 700;
+        }
+
+        .stat-card p {
+            color: #6c757d;
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        .network-map {
+            background-color: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: var(--card-shadow);
+            margin-bottom: 30px;
+        }
+
+        .network-visualization {
+            height: 450px;
+            background-color: #f8f9fa;
+            border-radius: 10px;
+            border: 1px solid #e9ecef;
+            position: relative;
+            overflow: hidden;
+            background-image: radial-gradient(circle, #e1e5eb 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        .node {
+            position: absolute;
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
+            z-index: 2;
+        }
+
+        .node:hover {
+            transform: scale(1.15);
+            z-index: 10;
+        }
+
+        .node-computer {
+            background: linear-gradient(135deg, var(--primary), #3498db);
+        }
+
+        .node-printer {
+            background: linear-gradient(135deg, var(--secondary), #2ecc71);
+        }
+
+        .node-other {
+            background: linear-gradient(135deg, var(--info), #9b59b6);
+        }
+
+        .connection {
+            position: absolute;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            transform-origin: 0 0;
+            z-index: 1;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-content {
+            background-color: white;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 800px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+            animation: modalFadeIn 0.4s ease;
+            overflow: hidden;
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        @keyframes modalFadeIn {
+            from { opacity: 0; transform: translateY(-30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .modal-header {
+            padding: 20px 25px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--bg-gradient);
+            color: white;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            font-weight: 700;
+        }
+
+        .close-modal {
+            background: none;
+            border: none;
+            font-size: 26px;
+            cursor: pointer;
+            color: white;
+            transition: transform 0.3s ease;
+        }
+
+        .close-modal:hover {
+            transform: scale(1.2);
+        }
+
+        .modal-body {
+            padding: 25px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .detail-row {
+            display: flex;
+            margin-bottom: 18px;
+            padding-bottom: 18px;
+            border-bottom: 1px solid #f1f1f1;
+        }
+
+        .detail-label {
+            flex: 0 0 180px;
+            font-weight: 600;
+            color: var(--dark);
+            font-size: 16px;
+        }
+
+        .detail-value {
+            flex: 1;
+            color: #495057;
+            font-size: 16px;
+        }
+
+        .ip-value {
+            font-family: monospace;
+            background-color: #f8f9fa;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+        }
+
+        .alert-danger {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .alert-success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert i {
+            margin-left: 10px;
+            font-size: 20px;
+        }
+
+        /* Footer */
+        footer {
+            background: var(--dark);
+            color: white;
+            padding: 40px 0 20px;
+            margin-top: 60px;
+        }
+
+        .footer-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .footer-logo {
+            display: flex;
+            align-items: center;
+        }
+
+        .footer-logo i {
+            font-size: 28px;
+            margin-left: 12px;
+            color: var(--primary);
+        }
+
+        .footer-info {
+            text-align: left;
+        }
+
+        .footer-info p {
+            margin-bottom: 5px;
+        }
+
+        .copyright {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 14px;
+            opacity: 0.7;
+        }
+
+        /* Table Styles */
+        .table-container {
+            overflow-x: auto;
+            margin-top: 20px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 800px;
+        }
+
+        th {
+            background: var(--bg-gradient);
+            color: white;
+            padding: 15px;
+            text-align: right;
+            font-weight: 600;
+        }
+
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        tr:hover {
+            background-color: #f8f9fa;
+        }
+
+        /* Responsive */
+        @media (max-width: 992px) {
+            .header-content {
+                flex-direction: column;
+                text-align: center;
+            }
+            
+            .manager-info {
+                margin-top: 20px;
+                text-align: center;
+            }
+            
+            .stats-cards {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                padding: 20px;
+            }
+            
+            .stats-cards {
+                grid-template-columns: 1fr;
+            }
+            
+            .checkbox-group {
+                flex-direction: column;
+            }
+            
+            .footer-content {
+                flex-direction: column;
+                text-align: center;
+            }
+            
+            .footer-info {
+                margin-top: 20px;
+                text-align: center;
+            }
+            
+            .network-visualization {
+                height: 350px;
+            }
+            
+            .btn {
+                width: 100%;
+                margin-left: 0;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .logo {
+                width: 60px;
+                height: 60px;
+            }
+            
+            .logo i {
+                font-size: 28px;
+            }
+            
+            .title-container h1 {
+                font-size: 22px;
+            }
+            
+            .section-title {
+                font-size: 20px;
+            }
+            
+            .detail-row {
+                flex-direction: column;
+            }
+            
+            .detail-label {
+                flex: none;
+                margin-bottom: 5px;
+            }
+            
+            .modal-content {
+                width: 95%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header>
+        <div class="container">
+            <div class="header-content">
+                <div class="logo-container">
+                    <div class="logo">
+                        <i class="fas fa-network-wired"></i>
+                    </div>
+                    <div class="title-container">
+                        <h1>نظام إدارة عناوين IP</h1>
+                        <p>كلية الطب البيطري - جامعة المنيا</p>
+                    </div>
+                </div>
+                <div class="manager-info">
+                    <h3>م. بولس سمير</h3>
+                    <p>مدير وحدة تكنولوجيا المعلومات</p>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="container">
+        <!-- Add IP Section -->
+        <section class="main-content">
+            <h2 class="section-title"><i class="fas fa-plus-circle"></i> تسجيل IP جديد</h2>
+            
+            <form id="ip-form">
+                <div class="form-group">
+                    <label for="office-name">اسم المكتب / القسم:</label>
+                    <input type="text" id="office-name" class="form-control" placeholder="أدخل اسم المكتب أو القسم" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="floor">الدور:</label>
+                    <select id="floor" class="form-control" required>
+                        <option value="">اختر الدور</option>
+                        <option value="الأرضي">الدور الأرضي</option>
+                        <option value="الأول">الدور الأول</option>
+                        <option value="الثاني">الدور الثاني</option>
+                        <option value="الثالث">الدور الثالث</option>
+                        <option value="الرابع">الدور الرابع</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>نوع الجهاز:</label>
+                    <div class="checkbox-group">
+                        <div class="checkbox-item" data-device="كمبيوتر">
+                            <input type="checkbox" id="computer" name="device-type" value="كمبيوتر">
+                            <label for="computer"><i class="fas fa-desktop"></i> كمبيوتر</label>
+                        </div>
+                        <div class="checkbox-item" data-device="طابعة">
+                            <input type="checkbox" id="printer" name="device-type" value="طابعة">
+                            <label for="printer"><i class="fas fa-print"></i> طابعة</label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="ip-inputs-container" id="ip-inputs-container">
+                    <!-- سيتم إضافة حقول إدخال IP هنا ديناميكياً -->
+                </div>
+                
+                <div id="duplicate-alert" class="alert alert-danger" style="display: none;">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <div>
+                        <strong>تحذير:</strong> عنوان IP هذا مسجل مسبقاً
+                        <div id="duplicate-details"></div>
+                    </div>
+                </div>
+                
+                <div class="selected-ips">
+                    <h3>عناوين IP المحددة:</h3>
+                    <div class="ip-display" id="ip-display">
+                        <!-- سيتم عرض عناوين IP المحددة هنا -->
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn btn-success"><i class="fas fa-save"></i> حفظ البيانات</button>
+                <button type="button" class="btn btn-info" id="update-btn" style="display: none;"><i class="fas fa-edit"></i> تحديث البيانات</button>
+                <button type="button" class="btn btn-warning" id="cancel-edit-btn" style="display: none;"><i class="fas fa-times"></i> إلغاء التعديل</button>
+            </form>
+        </section>
+
+        <!-- Reports Section -->
+        <section class="main-content">
+            <h2 class="section-title"><i class="fas fa-chart-bar"></i> تقرير الشبكة والإحصائيات</h2>
+            
+            <div class="stats-cards">
+                <div class="stat-card" id="total-ips-card">
+                    <i class="fas fa-network-wired"></i>
+                    <h3 id="total-ips">0</h3>
+                    <p>إجمالي عناوين IP</p>
+                </div>
+                <div class="stat-card" id="total-computers-card">
+                    <i class="fas fa-desktop"></i>
+                    <h3 id="total-computers">0</h3>
+                    <p>أجهزة كمبيوتر</p>
+                </div>
+                <div class="stat-card" id="total-printers-card">
+                    <i class="fas fa-print"></i>
+                    <h3 id="total-printers">0</h3>
+                    <p>طابعات</p>
+                </div>
+                <div class="stat-card" id="total-floors-card">
+                    <i class="fas fa-layer-group"></i>
+                    <h3 id="total-floors">0</h3>
+                    <p>عدد الأدوار</p>
+                </div>
+            </div>
+            
+            <div class="action-buttons">
+                <button class="btn btn-success" id="export-excel"><i class="fas fa-file-excel"></i> تصدير Excel</button>
+                <button class="btn btn-danger" id="export-pdf"><i class="fas fa-file-pdf"></i> تصدير PDF</button>
+                <button class="btn btn-info" id="print-report"><i class="fas fa-print"></i> طباعة التقرير</button>
+            </div>
+            
+            <div class="network-map">
+                <h3 class="section-title"><i class="fas fa-project-diagram"></i> خريطة الشبكة التفاعلية</h3>
+                <div class="network-visualization" id="network-visualization">
+                    <!-- سيتم عرض العقد والاتصالات هنا -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Manage Data Section -->
+        <section class="main-content">
+            <h2 class="section-title"><i class="fas fa-cogs"></i> إدارة بيانات IPs</h2>
+            
+            <div class="form-group">
+                <input type="text" id="search-ip" class="form-control" placeholder="ابحث عن IP أو اسم مكتب...">
+            </div>
+            
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>اسم المكتب</th>
+                            <th>الدور</th>
+                            <th>عنوان IP</th>
+                            <th>نوع الجهاز</th>
+                            <th>الإجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ip-table-body">
+                        <!-- سيتم ملء الجدول بالبيانات من Firebase -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <!-- IP Details Modal -->
+    <div class="modal" id="ip-details-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>تفاصيل عنوان IP</h3>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body" id="modal-body">
+                <!-- سيتم ملء التفاصيل هنا -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Modal -->
+    <div class="modal" id="stats-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>تفاصيل الإحصائيات</h3>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body" id="stats-modal-body">
+                <!-- سيتم ملء التفاصيل هنا -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-logo">
+                    <i class="fas fa-network-wired"></i>
+                    <div>
+                        <h3>نظام إدارة عناوين IP</h3>
+                        <p>كلية الطب البيطري - جامعة المنيا</p>
+                    </div>
+                </div>
+                <div class="footer-info">
+                    <p>تصميم وإشراف: م. بولس سمير</p>
+                    <p>مدير وحدة تكنولوجيا المعلومات</p>
+                </div>
+            </div>
+            <div class="copyright">
+                <p>جميع الحقوق محفوظة &copy; 2023 - كلية الطب البيطري جامعة المنيا</p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // تهيئة Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyC6GIY6bKZ7JaqtVd5YeX2UoH7Nd15vRhs",
+            authDomain: "play-61360.firebaseapp.com",
+            databaseURL: "https://play-61360-default-rtdb.firebaseio.com",
+            projectId: "play-61360",
+            storageBucket: "play-61360.firebasestorage.app",
+            messagingSenderId: "954084202709",
+            appId: "1:954084202709:web:9fbc80113b4d483d556a5c",
+            measurementId: "G-GX5PMMHPBG"
+        };
+
+        // تهيئة Firebase
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+
+        // متغيرات التطبيق
+        let ipData = [];
+        let selectedDevices = [];
+        let deviceIPs = {};
+        let editingId = null;
+
+        // DOM جاهز
+        document.addEventListener('DOMContentLoaded', function() {
+            // إعداد نموذج إضافة IP
+            setupIPForm();
+            
+            // تحميل البيانات من Firebase
+            loadIPData();
+            
+            // إعداد البحث
+            setupSearch();
+            
+            // إعداد النقر على العقد في خريطة الشبكة
+            setupNodeClicks();
+            
+            // إعداد أزرار التصدير والطباعة
+            setupExportButtons();
+            
+            // إعداد الإحصائيات
+            setupStatistics();
+        });
+
+        // إعداد نموذج إضافة IP
+        function setupIPForm() {
+            const form = document.getElementById('ip-form');
+            const deviceCheckboxes = document.querySelectorAll('input[name="device-type"]');
+            const ipInputsContainer = document.getElementById('ip-inputs-container');
+            const ipDisplay = document.getElementById('ip-display');
+            const updateBtn = document.getElementById('update-btn');
+            const cancelEditBtn = document.getElementById('cancel-edit-btn');
+            
+            // تحديث حقول إدخال IP عند تغيير الاختيارات
+            deviceCheckboxes.forEach(checkbox => {
+                checkbox.addEventListener('change', function() {
+                    updateIPInputs();
+                    updateSelectedIPsDisplay();
+                });
+            });
+            
+            // إضافة تأثير على عناصر الاختيار
+            document.querySelectorAll('.checkbox-item').forEach(item => {
+                item.addEventListener('click', function() {
+                    const checkbox = this.querySelector('input');
+                    checkbox.checked = !checkbox.checked;
+                    this.classList.toggle('selected', checkbox.checked);
+                    updateIPInputs();
+                    updateSelectedIPsDisplay();
+                });
+            });
+            
+            // إرسال النموذج
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const officeName = document.getElementById('office-name').value;
+                const floor = document.getElementById('floor').value;
+                
+                if (!officeName || !floor || selectedDevices.length === 0) {
+                    alert('يرجى ملء جميع الحقول المطلوبة وتحديد نوع جهاز واحد على الأقل');
+                    return;
+                }
+                
+                // التحقق من إدخال جميع عناوين IP المطلوبة
+                for (const device of selectedDevices) {
+                    if (!deviceIPs[device] || deviceIPs[device].trim() === '') {
+                        alert(`يرجى إدخال عنوان IP لجهاز ${device}`);
+                        return;
+                    }
+                    
+                    // التحقق من صيغة عنوان IP
+                    if (!isValidIP(deviceIPs[device])) {
+                        alert(`عنوان IP لجهاز ${device} غير صحيح. يرجى استخدام الصيغة الصحيحة (مثال: 192.168.1.1)`);
+                        return;
+                    }
+                    
+                    // التحقق من تكرار عنوان IP
+                    const duplicate = checkDuplicateIP(deviceIPs[device], editingId);
+                    if (duplicate) {
+                        showDuplicateAlert(duplicate);
+                        return;
+                    }
+                }
+                
+                // إنشاء كائن بيانات IP
+                const ipRecord = {
+                    officeName: officeName,
+                    floor: floor,
+                    devices: [...selectedDevices],
+                    deviceIPs: {...deviceIPs},
+                    timestamp: new Date().toISOString()
+                };
+                
+                if (editingId) {
+                    // تحديث البيانات في Firebase
+                    updateIPInFirebase(editingId, ipRecord);
+                } else {
+                    // حفظ البيانات في Firebase
+                    saveIPToFirebase(ipRecord);
+                }
+                
+                // إعادة تعيين النموذج
+                resetForm();
+                
+                alert(editingId ? 'تم تحديث البيانات بنجاح!' : 'تم حفظ البيانات بنجاح!');
+            });
+            
+            // زر التحديث
+            updateBtn.addEventListener('click', function() {
+                form.dispatchEvent(new Event('submit'));
+            });
+            
+            // زر إلغاء التعديل
+            cancelEditBtn.addEventListener('click', function() {
+                resetForm();
+            });
+        }
+
+        // إعادة تعيين النموذج
+        function resetForm() {
+            const form = document.getElementById('ip-form');
+            const ipInputsContainer = document.getElementById('ip-inputs-container');
+            const ipDisplay = document.getElementById('ip-display');
+            const updateBtn = document.getElementById('update-btn');
+            const cancelEditBtn = document.getElementById('cancel-edit-btn');
+            const duplicateAlert = document.getElementById('duplicate-alert');
+            
+            form.reset();
+            selectedDevices = [];
+            deviceIPs = {};
+            editingId = null;
+            ipInputsContainer.innerHTML = '';
+            ipDisplay.innerHTML = '';
+            duplicateAlert.style.display = 'none';
+            updateBtn.style.display = 'none';
+            cancelEditBtn.style.display = 'none';
+            
+            document.querySelectorAll('.checkbox-item').forEach(item => {
+                item.classList.remove('selected');
+            });
+        }
+
+        // تحديث حقول إدخال IP بناءً على الأجهزة المحددة
+        function updateIPInputs() {
+            const deviceCheckboxes = document.querySelectorAll('input[name="device-type"]:checked');
+            const ipInputsContainer = document.getElementById('ip-inputs-container');
+            
+            selectedDevices = [];
+            ipInputsContainer.innerHTML = '';
+            
+            deviceCheckboxes.forEach(checkbox => {
+                selectedDevices.push(checkbox.value);
+            });
+            
+            if (selectedDevices.length > 0) {
+                ipInputsContainer.style.display = 'block';
+                
+                selectedDevices.forEach(device => {
+                    const ipInputGroup = document.createElement('div');
+                    ipInputGroup.className = 'ip-input-group';
+                    
+                    ipInputGroup.innerHTML = `
+                        <label for="ip-${device}">عنوان IP لـ ${device}:</label>
+                        <input type="text" id="ip-${device}" class="form-control ip-input" 
+                               placeholder="أدخل عنوان IP (مثال: 192.168.1.1)" 
+                               data-device="${device}" value="${deviceIPs[device] || ''}">
+                    `;
+                    
+                    ipInputsContainer.appendChild(ipInputGroup);
+                });
+                
+                // إضافة مستمعات الأحداث لحقول إدخال IP
+                document.querySelectorAll('.ip-input').forEach(input => {
+                    input.addEventListener('input', function() {
+                        const device = this.getAttribute('data-device');
+                        deviceIPs[device] = this.value;
+                        updateSelectedIPsDisplay();
+                        
+                        // التحقق من التكرار عند إدخال IP
+                        if (isValidIP(this.value)) {
+                            const duplicate = checkDuplicateIP(this.value, editingId);
+                            if (duplicate) {
+                                showDuplicateAlert(duplicate);
+                            } else {
+                                hideDuplicateAlert();
+                            }
+                        } else {
+                            hideDuplicateAlert();
+                        }
+                    });
+                });
+            } else {
+                ipInputsContainer.style.display = 'none';
+            }
+        }
+
+        // تحديث عرض عناوين IP المحددة
+        function updateSelectedIPsDisplay() {
+            const ipDisplay = document.getElementById('ip-display');
+            ipDisplay.innerHTML = '';
+            
+            selectedDevices.forEach(device => {
+                if (deviceIPs[device] && deviceIPs[device].trim() !== '') {
+                    const ipElement = document.createElement('div');
+                    ipElement.className = 'ip-item';
+                    ipElement.innerHTML = `<i class="fas fa-network-wired"></i> ${deviceIPs[device]} (${device})`;
+                    ipDisplay.appendChild(ipElement);
+                }
+            });
+        }
+
+        // التحقق من صيغة عنوان IP
+        function isValidIP(ip) {
+            const ipRegex = /^(\d{1,3}\.){3}\d{1,3}$/;
+            if (!ipRegex.test(ip)) return false;
+            
+            const parts = ip.split('.');
+            for (const part of parts) {
+                const num = parseInt(part, 10);
+                if (num < 0 || num > 255) return false;
+            }
+            
+            return true;
+        }
+
+        // التحقق من تكرار عنوان IP
+        function checkDuplicateIP(ip, excludeId = null) {
+            for (const record of ipData) {
+                if (excludeId && record.id === excludeId) continue;
+                
+                if (record.deviceIPs) {
+                    for (const device in record.deviceIPs) {
+                        if (record.deviceIPs[device] === ip) {
+                            return record;
+                        }
+                    }
+                }
+            }
+            return null;
+        }
+
+        // عرض تحذير التكرار
+        function showDuplicateAlert(duplicateRecord) {
+            const duplicateAlert = document.getElementById('duplicate-alert');
+            const duplicateDetails = document.getElementById('duplicate-details');
+            
+            duplicateDetails.innerHTML = `
+                العنوان ${duplicateRecord.deviceIPs ? Object.values(duplicateRecord.deviceIPs)[0] : ''} 
+                مسجل مسبقاً في ${duplicateRecord.officeName} - ${duplicateRecord.floor}
+            `;
+            
+            duplicateAlert.style.display = 'flex';
+        }
+
+        // إخفاء تحذير التكرار
+        function hideDuplicateAlert() {
+            const duplicateAlert = document.getElementById('duplicate-alert');
+            duplicateAlert.style.display = 'none';
+        }
+
+        // حفظ بيانات IP في Firebase
+        function saveIPToFirebase(ipRecord) {
+            const newIPKey = database.ref().child('ips').push().key;
+            const updates = {};
+            updates['/ips/' + newIPKey] = ipRecord;
+            
+            return database.ref().update(updates);
+        }
+
+        // تحديث بيانات IP في Firebase
+        function updateIPInFirebase(id, ipRecord) {
+            return database.ref('ips/' + id).update(ipRecord);
+        }
+
+        // تحميل بيانات IP من Firebase
+        function loadIPData() {
+            const ipsRef = database.ref('ips');
+            
+            ipsRef.on('value', (snapshot) => {
+                ipData = [];
+                const data = snapshot.val();
+                
+                if (data) {
+                    Object.keys(data).forEach(key => {
+                        ipData.push({
+                            id: key,
+                            ...data[key]
+                        });
+                    });
+                }
+                
+                // تحديث الإحصائيات
+                updateStatistics();
+                
+                // تحديث الجدول
+                updateIPTable();
+                
+                // تحديث خريطة الشبكة
+                updateNetworkMap();
+            });
+        }
+
+        // تحديث الإحصائيات
+        function updateStatistics() {
+            document.getElementById('total-ips').textContent = ipData.length;
+            
+            const computers = ipData.filter(ip => ip.devices.includes('كمبيوتر')).length;
+            const printers = ipData.filter(ip => ip.devices.includes('طابعة')).length;
+            const floors = [...new Set(ipData.map(ip => ip.floor))].length;
+            
+            document.getElementById('total-computers').textContent = computers;
+            document.getElementById('total-printers').textContent = printers;
+            document.getElementById('total-floors').textContent = floors;
+        }
+
+        // إعداد الإحصائيات
+        function setupStatistics() {
+            document.getElementById('total-ips-card').addEventListener('click', function() {
+                showStatisticsModal('إجمالي عناوين IP', ipData.length, ipData);
+            });
+            
+            document.getElementById('total-computers-card').addEventListener('click', function() {
+                const computers = ipData.filter(ip => ip.devices.includes('كمبيوتر'));
+                showStatisticsModal('أجهزة الكمبيوتر', computers.length, computers);
+            });
+            
+            document.getElementById('total-printers-card').addEventListener('click', function() {
+                const printers = ipData.filter(ip => ip.devices.includes('طابعة'));
+                showStatisticsModal('الطابعات', printers.length, printers);
+            });
+            
+            document.getElementById('total-floors-card').addEventListener('click', function() {
+                const floors = [...new Set(ipData.map(ip => ip.floor))];
+                showStatisticsModal('الأدوار', floors.length, ipData, true);
+            });
+        }
+
+        // عرض موديل الإحصائيات
+        function showStatisticsModal(title, count, data, isFloors = false) {
+            const modal = document.getElementById('stats-modal');
+            const modalBody = document.getElementById('stats-modal-body');
+            
+            let content = `
+                <div class="detail-row">
+                    <div class="detail-label">${title}:</div>
+                    <div class="detail-value">${count}</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">التفاصيل:</div>
+                    <div class="detail-value">
+            `;
+            
+            if (isFloors) {
+                const floors = [...new Set(data.map(ip => ip.floor))];
+                floors.forEach(floor => {
+                    const floorIPs = data.filter(ip => ip.floor === floor);
+                    content += `<div><strong>${floor}:</strong> ${floorIPs.length} عنوان IP</div>`;
+                });
+            } else {
+                data.forEach(ip => {
+                    const ipList = ip.deviceIPs ? Object.values(ip.deviceIPs).join(', ') : 'لا توجد عناوين';
+                    content += `<div><strong>${ip.officeName} - ${ip.floor}:</strong> ${ipList}</div>`;
+                });
+            }
+            
+            content += `
+                    </div>
+                </div>
+            `;
+            
+            modalBody.innerHTML = content;
+            modal.style.display = 'flex';
+            
+            // إغلاق النافذة المنبثقة
+            const closeBtn = modal.querySelector('.close-modal');
+            closeBtn.onclick = function() {
+                modal.style.display = 'none';
+            };
+            
+            window.onclick = function(event) {
+                if (event.target === modal) {
+                    modal.style.display = 'none';
+                }
+            };
+        }
+
+        // تحديث جدول IPs
+        function updateIPTable() {
+            const tableBody = document.getElementById('ip-table-body');
+            tableBody.innerHTML = '';
+            
+            if (ipData.length === 0) {
+                const row = document.createElement('tr');
+                row.innerHTML = `<td colspan="5" style="padding: 20px; text-align: center;">لا توجد بيانات متاحة</td>`;
+                tableBody.appendChild(row);
+                return;
+            }
+            
+            ipData.forEach(ip => {
+                const row = document.createElement('tr');
+                
+                // إنشاء قائمة بعناوين IP
+                let ipList = '';
+                if (ip.deviceIPs) {
+                    for (const device in ip.deviceIPs) {
+                        ipList += `<div>${ip.deviceIPs[device]} (${device})</div>`;
+                    }
+                }
+                
+                row.innerHTML = `
+                    <td>${ip.officeName}</td>
+                    <td>${ip.floor}</td>
+                    <td style="font-family: monospace;">${ipList || 'لا توجد عناوين'}</td>
+                    <td>${ip.devices.join(', ')}</td>
+                    <td>
+                        <button class="btn" style="padding: 8px 15px; font-size: 14px; margin-left: 5px;" onclick="viewIPDetails('${ip.id}')">
+                            <i class="fas fa-eye"></i> عرض
+                        </button>
+                        <button class="btn btn-warning" style="padding: 8px 15px; font-size: 14px; margin-left: 5px;" onclick="editIP('${ip.id}')">
+                            <i class="fas fa-edit"></i> تعديل
+                        </button>
+                        <button class="btn btn-danger" style="padding: 8px 15px; font-size: 14px;" onclick="deleteIP('${ip.id}')">
+                            <i class="fas fa-trash"></i> حذف
+                        </button>
+                    </td>
+                `;
+                
+                tableBody.appendChild(row);
+            });
+        }
+
+        // تعديل IP
+        function editIP(ipId) {
+            const ip = ipData.find(item => item.id === ipId);
+            if (!ip) return;
+            
+            // تعبئة النموذب بالبيانات
+            document.getElementById('office-name').value = ip.officeName;
+            document.getElementById('floor').value = ip.floor;
+            
+            // تحديد الأجهزة
+            selectedDevices = [...ip.devices];
+            deviceIPs = {...ip.deviceIPs};
+            editingId = ipId;
+            
+            // تحديث واجهة المستخدم
+            document.querySelectorAll('.checkbox-item').forEach(item => {
+                const device = item.getAttribute('data-device');
+                const checkbox = item.querySelector('input');
+                checkbox.checked = selectedDevices.includes(device);
+                item.classList.toggle('selected', checkbox.checked);
+            });
+            
+            updateIPInputs();
+            updateSelectedIPsDisplay();
+            
+            // إظهار أزرار التعديل
+            document.getElementById('update-btn').style.display = 'inline-flex';
+            document.getElementById('cancel-edit-btn').style.display = 'inline-flex';
+            
+            // التمرير إلى أعلى الصفحة
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // تحديث خريطة الشبكة
+        function updateNetworkMap() {
+            const networkViz = document.getElementById('network-visualization');
+            networkViz.innerHTML = '';
+            
+            if (ipData.length === 0) {
+                networkViz.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #6c757d; font-size: 18px;">لا توجد بيانات لعرضها</div>';
+                return;
+            }
+            
+            // إنشاء العقد
+            ipData.forEach((ip, index) => {
+                const node = document.createElement('div');
+                node.className = 'node';
+                
+                // تحديد نوع العقدة بناءً على نوع الجهاز
+                if (ip.devices.includes('كمبيوتر')) {
+                    node.classList.add('node-computer');
+                    node.innerHTML = '<i class="fas fa-desktop"></i>';
+                } else if (ip.devices.includes('طابعة')) {
+                    node.classList.add('node-printer');
+                    node.innerHTML = '<i class="fas fa-print"></i>';
+                } else {
+                    node.classList.add('node-other');
+                    node.innerHTML = '<i class="fas fa-server"></i>';
+                }
+                
+                // تحديد موضع العقدة بشكل عشوائي (في تطبيق حقيقي، سيكون بناءً على البيانات الفعلية)
+                const x = 60 + Math.random() * (networkViz.offsetWidth - 120);
+                const y = 60 + Math.random() * (networkViz.offsetHeight - 120);
+                
+                node.style.left = `${x}px`;
+                node.style.top = `${y}px`;
+                node.setAttribute('data-ip-id', ip.id);
+                
+                networkViz.appendChild(node);
+            });
+            
+            // إنشاء اتصالات بين العقد (في تطبيق حقيقي، سيكون بناءً على العلاقات الفعلية)
+            createRandomConnections();
+        }
+
+        // إنشاء اتصالات عشوائية بين العقد
+        function createRandomConnections() {
+            const nodes = document.querySelectorAll('.node');
+            const networkViz = document.getElementById('network-visualization');
+            
+            nodes.forEach((node, index) => {
+                if (index < nodes.length - 1) {
+                    const nextNode = nodes[index + 1];
+                    
+                    const x1 = parseFloat(node.style.left) + 35;
+                    const y1 = parseFloat(node.style.top) + 35;
+                    const x2 = parseFloat(nextNode.style.left) + 35;
+                    const y2 = parseFloat(nextNode.style.top) + 35;
+                    
+                    const length = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+                    const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+                    
+                    const connection = document.createElement('div');
+                    connection.className = 'connection';
+                    connection.style.width = `${length}px`;
+                    connection.style.left = `${x1}px`;
+                    connection.style.top = `${y1}px`;
+                    connection.style.transform = `rotate(${angle}deg)`;
+                    
+                    networkViz.appendChild(connection);
+                }
+            });
+        }
+
+        // إعداد النقر على العقد في خريطة الشبكة
+        function setupNodeClicks() {
+            document.addEventListener('click', function(e) {
+                if (e.target.closest('.node')) {
+                    const node = e.target.closest('.node');
+                    const ipId = node.getAttribute('data-ip-id');
+                    viewIPDetails(ipId);
+                }
+            });
+        }
+
+        // عرض تفاصيل IP
+        function viewIPDetails(ipId) {
+            const ip = ipData.find(item => item.id === ipId);
+            if (!ip) return;
+            
+            const modal = document.getElementById('ip-details-modal');
+            const modalBody = document.getElementById('modal-body');
+            
+            // إنشاء قائمة بعناوين IP
+            let ipList = '';
+            if (ip.deviceIPs) {
+                for (const device in ip.deviceIPs) {
+                    ipList += `<div class="ip-value" style="margin-bottom: 5px;">${ip.deviceIPs[device]} (${device})</div>`;
+                }
+            }
+            
+            modalBody.innerHTML = `
+                <div class="detail-row">
+                    <div class="detail-label">اسم المكتب:</div>
+                    <div class="detail-value">${ip.officeName}</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">الدور:</div>
+                    <div class="detail-value">${ip.floor}</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">عناوين IP:</div>
+                    <div class="detail-value">${ipList || 'لا توجد عناوين'}</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">أنواع الأجهزة:</div>
+                    <div class="detail-value">${ip.devices.join(', ')}</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">تاريخ الإضافة:</div>
+                    <div class="detail-value">${new Date(ip.timestamp).toLocaleString('ar-EG')}</div>
+                </div>
+                <div class="detail-row">
+                    <button class="btn btn-warning" onclick="editIP('${ip.id}'); document.getElementById('ip-details-modal').style.display='none';">
+                        <i class="fas fa-edit"></i> تعديل
+                    </button>
+                </div>
+            `;
+            
+            modal.style.display = 'flex';
+            
+            // إغلاق النافذة المنبثقة
+            const closeBtn = modal.querySelector('.close-modal');
+            closeBtn.onclick = function() {
+                modal.style.display = 'none';
+            };
+            
+            window.onclick = function(event) {
+                if (event.target === modal) {
+                    modal.style.display = 'none';
+                }
+            };
+        }
+
+        // حذف IP
+        function deleteIP(ipId) {
+            if (confirm('هل أنت متأكد من حذف هذا السجل؟')) {
+                database.ref('ips/' + ipId).remove()
+                    .then(() => {
+                        alert('تم حذف السجل بنجاح');
+                    })
+                    .catch(error => {
+                        alert('حدث خطأ أثناء الحذف: ' + error.message);
+                    });
+            }
+        }
+
+        // إعداد البحث
+        function setupSearch() {
+            const searchInput = document.getElementById('search-ip');
+            
+            searchInput.addEventListener('input', function() {
+                const searchTerm = this.value.toLowerCase();
+                const tableRows = document.querySelectorAll('#ip-table-body tr');
+                
+                tableRows.forEach(row => {
+                    const text = row.textContent.toLowerCase();
+                    if (text.includes(searchTerm)) {
+                        row.style.display = '';
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+            });
+        }
+
+        // إعداد أزرار التصدير والطباعة
+        function setupExportButtons() {
+            document.getElementById('export-excel').addEventListener('click', exportToExcel);
+            document.getElementById('export-pdf').addEventListener('click', exportToPDF);
+            document.getElementById('print-report').addEventListener('click', printReport);
+        }
+
+        // تصدير إلى Excel
+        function exportToExcel() {
+            if (ipData.length === 0) {
+                alert('لا توجد بيانات لتصديرها');
+                return;
+            }
+            
+            const data = ipData.map(ip => {
+                const ips = ip.deviceIPs ? Object.entries(ip.deviceIPs).map(([device, ip]) => `${ip} (${device})`).join(', ') : '';
+                return {
+                    'اسم المكتب': ip.officeName,
+                    'الدور': ip.floor,
+                    'عناوين IP': ips,
+                    'أنواع الأجهزة': ip.devices.join(', '),
+                    'تاريخ الإضافة': new Date(ip.timestamp).toLocaleString('ar-EG')
+                };
+            });
+            
+            const worksheet = XLSX.utils.json_to_sheet(data);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'عناوين IP');
+            XLSX.writeFile(workbook, 'عناوين_IP_كلية_الطب_البيطري.xlsx');
+        }
+
+        // تصدير إلى PDF
+        function exportToPDF() {
+            if (ipData.length === 0) {
+                alert('لا توجد بيانات لتصديرها');
+                return;
+            }
+            
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            // عنوان التقرير
+            doc.setFontSize(20);
+            doc.setTextColor(26, 82, 118);
+            doc.text('تقرير عناوين IP - كلية الطب البيطري', 105, 15, null, null, 'center');
+            
+            // تاريخ التقرير
+            doc.setFontSize(12);
+            doc.setTextColor(100, 100, 100);
+            doc.text(`تاريخ التقرير: ${new Date().toLocaleDateString('ar-EG')}`, 105, 25, null, null, 'center');
+            
+            // البيانات
+            let y = 40;
+            doc.setFontSize(12);
+            doc.setTextColor(0, 0, 0);
+            
+            ipData.forEach((ip, index) => {
+                if (y > 270) {
+                    doc.addPage();
+                    y = 20;
+                }
+                
+                const ips = ip.deviceIPs ? Object.entries(ip.deviceIPs).map(([device, ip]) => `${ip} (${device})`).join(', ') : '';
+                
+                doc.text(`المكتب: ${ip.officeName}`, 20, y);
+                doc.text(`الدور: ${ip.floor}`, 20, y + 7);
+                doc.text(`عناوين IP: ${ips}`, 20, y + 14);
+                doc.text(`الأجهزة: ${ip.devices.join(', ')}`, 20, y + 21);
+                
+                y += 35;
+            });
+            
+            doc.save('تقرير_عناوين_IP.pdf');
+        }
+
+        // طباعة التقرير
+        function printReport() {
+            const printContent = `
+                <html>
+                <head>
+                    <title>تقرير عناوين IP - كلية الطب البيطري</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; direction: rtl; padding: 20px; }
+                        h1 { color: #1a5276; text-align: center; }
+                        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                        th, td { border: 1px solid #ddd; padding: 10px; text-align: right; }
+                        th { background-color: #1a5276; color: white; }
+                        tr:nth-child(even) { background-color: #f2f2f2; }
+                    </style>
+                </head>
+                <body>
+                    <h1>تقرير عناوين IP - كلية الطب البيطري</h1>
+                    <p>تاريخ التقرير: ${new Date().toLocaleDateString('ar-EG')}</p>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>اسم المكتب</th>
+                                <th>الدور</th>
+                                <th>عنوان IP</th>
+                                <th>نوع الجهاز</th>
+                                <th>تاريخ الإضافة</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${ipData.map(ip => {
+                                const ips = ip.deviceIPs ? Object.entries(ip.deviceIPs).map(([device, ip]) => `${ip} (${device})`).join(', ') : '';
+                                return `
+                                    <tr>
+                                        <td>${ip.officeName}</td>
+                                        <td>${ip.floor}</td>
+                                        <td>${ips}</td>
+                                        <td>${ip.devices.join(', ')}</td>
+                                        <td>${new Date(ip.timestamp).toLocaleString('ar-EG')}</td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </body>
+                </html>
+            `;
+            
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(printContent);
+            printWindow.document.close();
+            printWindow.print();
+        }
+    </script>
+</body>
+</html>
