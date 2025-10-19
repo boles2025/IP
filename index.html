@@ -6,8 +6,6 @@
     <title>نظام إدارة IPs - كلية الطب البيطري جامعة المنيا</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
@@ -254,14 +252,20 @@
             color: var(--dark);
         }
 
+        .ip-input-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
         .ip-prefix {
             display: flex;
             align-items: center;
-            margin-bottom: 10px;
             padding: 8px 12px;
             background-color: #e9ecef;
             border-radius: 6px;
             font-family: monospace;
+            white-space: nowrap;
         }
 
         .ip-prefix span {
@@ -272,11 +276,32 @@
         .ip-number-input {
             display: flex;
             align-items: center;
+            flex: 1;
         }
 
         .ip-number-input input {
             width: 100px;
             margin-left: 10px;
+        }
+
+        .available-ips-btn {
+            background: linear-gradient(135deg, var(--info), #3498db);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 10px 15px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            white-space: nowrap;
+        }
+
+        .available-ips-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
         }
 
         .selected-ips {
@@ -660,6 +685,45 @@
             background-color: #f8f9fa;
         }
 
+        /* أنماط جديدة للعناوين الفارغة */
+        .available-ips-modal .modal-content {
+            max-width: 500px;
+        }
+
+        .available-ips-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+        }
+        
+        .available-ip-item {
+            background-color: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            border: 1px solid #dee2e6;
+            font-family: monospace;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .available-ip-item:hover {
+            background-color: #e9ecef;
+            transform: translateY(-2px);
+        }
+        
+        .available-ip-item.selected {
+            background-color: rgba(26, 82, 118, 0.1);
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
         /* Responsive */
         @media (max-width: 992px) {
             .header-content {
@@ -707,6 +771,16 @@
             .btn {
                 width: 100%;
                 margin-left: 0;
+            }
+            
+            .ip-input-row {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .available-ips-btn {
+                width: 100%;
+                justify-content: center;
             }
         }
 
@@ -857,7 +931,6 @@
             
             <div class="action-buttons">
                 <button class="btn btn-success" id="export-excel"><i class="fas fa-file-excel"></i> تصدير Excel</button>
-                <button class="btn btn-danger" id="export-pdf"><i class="fas fa-file-pdf"></i> تصدير PDF</button>
                 <button class="btn btn-info" id="print-report"><i class="fas fa-print"></i> طباعة التقرير</button>
             </div>
             
@@ -922,6 +995,22 @@
         </div>
     </div>
 
+    <!-- Available IPs Modal -->
+    <div class="modal available-ips-modal" id="available-ips-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>العناوين الفارغة المتاحة</h3>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>اختر عنوان IP فارغ من القائمة:</p>
+                <div class="available-ips-list" id="available-ips-list">
+                    <!-- سيتم ملء العناوين الفارغة هنا -->
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Footer -->
     <footer>
         <div class="container">
@@ -967,25 +1056,16 @@
         let deviceIPs = {};
         let editingId = null;
         const IP_PREFIX = "192.168.248.";
+        const TOTAL_IPS = 254; // إجمالي عدد عناوين IP المتاحة
 
         // DOM جاهز
         document.addEventListener('DOMContentLoaded', function() {
-            // إعداد نموذج إضافة IP
+            // إعداد النموذج والبيانات كما كان
             setupIPForm();
-            
-            // تحميل البيانات من Firebase
             loadIPData();
-            
-            // إعداد البحث
             setupSearch();
-            
-            // إعداد النقر على العقد في خريطة الشبكة
             setupNodeClicks();
-            
-            // إعداد أزرار التصدير والطباعة
             setupExportButtons();
-            
-            // إعداد الإحصائيات
             setupStatistics();
         });
 
@@ -1138,16 +1218,21 @@
                     
                     ipInputGroup.innerHTML = `
                         <label for="ip-${device}">رقم IP لـ ${device}:</label>
-                        <div class="ip-prefix">
-                            <i class="fas fa-network-wired"></i>
-                            <span>${IP_PREFIX}</span>
-                        </div>
-                        <div class="ip-number-input">
-                            <input type="number" id="ip-${device}" class="form-control ip-input" 
-                                   placeholder="أدخل الرقم فقط (مثال: 5)" 
-                                   data-device="${device}" value="${deviceIPs[device] || ''}" 
-                                   min="1" max="254">
-                            <span>رقم IP</span>
+                        <div class="ip-input-row">
+                            <div class="ip-prefix">
+                                <i class="fas fa-network-wired"></i>
+                                <span>${IP_PREFIX}</span>
+                            </div>
+                            <div class="ip-number-input">
+                                <input type="number" id="ip-${device}" class="form-control ip-input" 
+                                       placeholder="أدخل الرقم فقط (مثال: 5)" 
+                                       data-device="${device}" value="${deviceIPs[device] || ''}" 
+                                       min="1" max="254">
+                                <span>رقم IP</span>
+                            </div>
+                            <button type="button" class="available-ips-btn" data-device="${device}">
+                                <i class="fas fa-list"></i> العناوين الفارغة
+                            </button>
                         </div>
                     `;
                     
@@ -1173,6 +1258,14 @@
                         } else {
                             hideDuplicateAlert();
                         }
+                    });
+                });
+                
+                // إضافة مستمعات الأحداث لأزرار العناوين الفارغة
+                document.querySelectorAll('.available-ips-btn').forEach(button => {
+                    button.addEventListener('click', function() {
+                        const device = this.getAttribute('data-device');
+                        showAvailableIPs(device);
                     });
                 });
             } else {
@@ -1279,6 +1372,83 @@
                 // تحديث خريطة الشبكة
                 updateNetworkMap();
             });
+        }
+
+        // الحصول على جميع عناوين IP المستخدمة
+        function getAllUsedIPs() {
+            const usedIPs = [];
+            
+            ipData.forEach(record => {
+                if (record.fullIPs) {
+                    for (const device in record.fullIPs) {
+                        const fullIP = record.fullIPs[device];
+                        // استخراج الرقم فقط من عنوان IP الكامل
+                        const ipNumber = parseInt(fullIP.split('.').pop(), 10);
+                        if (!isNaN(ipNumber)) {
+                            usedIPs.push(ipNumber);
+                        }
+                    }
+                }
+            });
+            
+            return usedIPs;
+        }
+
+        // عرض العناوين الفارغة
+        function showAvailableIPs(device) {
+            const modal = document.getElementById('available-ips-modal');
+            const availableIPsList = document.getElementById('available-ips-list');
+            
+            // الحصول على جميع عناوين IP المستخدمة
+            const usedIPs = getAllUsedIPs();
+            
+            // إنشاء قائمة بجميع عناوين IP الممكنة
+            const allPossibleIPs = [];
+            for (let i = 1; i <= TOTAL_IPS; i++) {
+                allPossibleIPs.push(i);
+            }
+            
+            // تصفية العناوين الفارغة
+            const emptyIPs = allPossibleIPs.filter(ip => !usedIPs.includes(ip));
+            
+            // تحديث قائمة العناوين الفارغة
+            availableIPsList.innerHTML = '';
+            emptyIPs.forEach(ip => {
+                const fullIP = IP_PREFIX + ip;
+                const ipElement = document.createElement('div');
+                ipElement.className = 'available-ip-item';
+                ipElement.textContent = fullIP;
+                ipElement.setAttribute('data-ip', ip);
+                
+                ipElement.addEventListener('click', function() {
+                    // تعبئة حقل الإدخال بالعنوان المحدد
+                    const input = document.getElementById(`ip-${device}`);
+                    if (input) {
+                        input.value = ip;
+                        deviceIPs[device] = ip.toString();
+                        updateSelectedIPsDisplay();
+                    }
+                    
+                    // إغلاق النافذة المنبثقة
+                    modal.style.display = 'none';
+                });
+                
+                availableIPsList.appendChild(ipElement);
+            });
+            
+            modal.style.display = 'flex';
+            
+            // إغلاق النافذة المنبثقة
+            const closeBtn = modal.querySelector('.close-modal');
+            closeBtn.onclick = function() {
+                modal.style.display = 'none';
+            };
+            
+            window.onclick = function(event) {
+                if (event.target === modal) {
+                    modal.style.display = 'none';
+                }
+            };
         }
 
         // تحديث الإحصائيات
@@ -1415,7 +1585,7 @@
             const ip = ipData.find(item => item.id === ipId);
             if (!ip) return;
             
-            // تعبئة النموذب بالبيانات
+            // تعبئة النموذج بالبيانات
             document.getElementById('office-name').value = ip.officeName;
             document.getElementById('floor').value = ip.floor;
             
@@ -1619,7 +1789,6 @@
         // إعداد أزرار التصدير والطباعة
         function setupExportButtons() {
             document.getElementById('export-excel').addEventListener('click', exportToExcel);
-            document.getElementById('export-pdf').addEventListener('click', exportToPDF);
             document.getElementById('print-report').addEventListener('click', printReport);
         }
 
@@ -1645,50 +1814,6 @@
             const workbook = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(workbook, worksheet, 'عناوين IP');
             XLSX.writeFile(workbook, 'عناوين_IP_كلية_الطب_البيطري.xlsx');
-        }
-
-        // تصدير إلى PDF
-        function exportToPDF() {
-            if (ipData.length === 0) {
-                alert('لا توجد بيانات لتصديرها');
-                return;
-            }
-            
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF();
-            
-            // عنوان التقرير
-            doc.setFontSize(20);
-            doc.setTextColor(26, 82, 118);
-            doc.text('تقرير عناوين IP - كلية الطب البيطري', 105, 15, null, null, 'center');
-            
-            // تاريخ التقرير
-            doc.setFontSize(12);
-            doc.setTextColor(100, 100, 100);
-            doc.text(`تاريخ التقرير: ${new Date().toLocaleDateString('ar-EG')}`, 105, 25, null, null, 'center');
-            
-            // البيانات
-            let y = 40;
-            doc.setFontSize(12);
-            doc.setTextColor(0, 0, 0);
-            
-            ipData.forEach((ip, index) => {
-                if (y > 270) {
-                    doc.addPage();
-                    y = 20;
-                }
-                
-                const ips = ip.fullIPs ? Object.entries(ip.fullIPs).map(([device, ip]) => `${ip} (${device})`).join(', ') : '';
-                
-                doc.text(`المكتب: ${ip.officeName}`, 20, y);
-                doc.text(`الدور: ${ip.floor}`, 20, y + 7);
-                doc.text(`عناوين IP: ${ips}`, 20, y + 14);
-                doc.text(`الأجهزة: ${ip.devices.join(', ')}`, 20, y + 21);
-                
-                y += 35;
-            });
-            
-            doc.save('تقرير_عناوين_IP.pdf');
         }
 
         // طباعة التقرير
